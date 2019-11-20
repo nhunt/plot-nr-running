@@ -34,9 +34,10 @@ from matplotlib.colors import ListedColormap, BoundaryNorm
 from matplotlib import collections as mc
 from matplotlib.ticker import MultipleLocator
 
-def draw_report(title, time_axis, map_values, differences, imbalances, sums, image_file=None, numa_cpus={}):
+def draw_report(title, time_axis, map_values, differences, imbalances, sums, image_file=None, numa_cpus={}, figsize=None):
     # Transpose heat map data to right axes
     map_values = np.array(map_values)[:-1, :].transpose()
+
 
     # Group CPU lines by NUMA nodes
     if numa_cpus:
@@ -52,8 +53,9 @@ def draw_report(title, time_axis, map_values, differences, imbalances, sums, ima
     boundaries = [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5]
     norm = BoundaryNorm(boundaries, cmap.N, clip=True)
 
+    figsize = (20, 10) if figsize == None else figsize
     fig, axs = plt.subplots(nrows=3, ncols=1, gridspec_kw=dict(height_ratios=[4, 1, 2]),
-                            sharex=True, figsize=(20, 10))  # , constrained_layout=True)
+                            sharex=True, figsize=figsize)  # , constrained_layout=True)
     fig.subplots_adjust(hspace=0.05)
 
     # Draw the main heat map
@@ -134,6 +136,11 @@ def read_nodes(lscpu_file):
 
     return numa_cpus
 
+def file_len(fname):
+    with open(fname) as f:
+        for i, l in enumerate(f):
+            pass
+    return i + 1
 
 def process_report(title, input_file, sampling, threshold, duration, ebpf_file=False, image_file=None, numa_cpus={}):
     cpus_count = 0
@@ -156,6 +163,10 @@ def process_report(title, input_file, sampling, threshold, duration, ebpf_file=F
     last_row = np.zeros(cpus_count)
     map_values.append(last_row)
 
+    print("Counting lines...")
+    numlines = file_len(input_file.name)
+    print("... {} lines total".format(numlines))
+
     last_imbalance_start = 0
     point_time = 0
 
@@ -164,8 +175,14 @@ def process_report(title, input_file, sampling, threshold, duration, ebpf_file=F
     else:
         reg_exp=re.compile(r"^.*-(\d+).*\s(\d+[.]\d+): sched_update_nr_running: cpu=(\d+) nr_running=(\d+)")
 
+    curline = 0
     for line in input_file:
         match = reg_exp.findall(line)
+
+        curline += 1
+        print("\rProgress: {:6.2f}%  |{:<60s}|".format(
+            float(curline) * 100.0 / numlines,
+            "#" * int((curline * 1.0 / numlines) * 60)), end="")
 
         # Check the correct event
         if len(match) != 1:
@@ -210,6 +227,8 @@ def process_report(title, input_file, sampling, threshold, duration, ebpf_file=F
             sums.append(sum(row))
             time_axis.append(point_time)
         last_row = row
+
+    print("\nDone!")
 
     # Check for unreported imbalance lasting to the very end of input
     if last_imbalance_start != 0 \

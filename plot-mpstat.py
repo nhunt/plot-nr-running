@@ -104,7 +104,7 @@ def process_report(input_file, time_offset=0.0, image_file=None, numa_cpus={}):
         print("Wrong mpstat header")
         exit(1)
 
-    start_date = datetime.strptime(match[0][0], "%m/%d/%y").date()
+    start_date = datetime.strptime(match[0][0], "%m/%d/%Y").date()
     cpus_count = int(match[0][1])
 
     input_file.readline()  # skip first empty line
@@ -130,7 +130,7 @@ def process_report(input_file, time_offset=0.0, image_file=None, numa_cpus={}):
             continue
         if data[0] == "Average:":
             break  # end of file
-        if data[1] == "CPU":  # Time when measure started
+        if data[2] == "CPU":  # Time when measure started
             last_time = curr_time
             curr_time = datetime.combine(start_date,
                 datetime.strptime(data[0], "%H:%M:%S").time()).timestamp() - time_offset
@@ -138,9 +138,11 @@ def process_report(input_file, time_offset=0.0, image_file=None, numa_cpus={}):
             #     start_date += timedelta(days=1)
             #     curr_time += timedelta(days=1)
             continue
-        if data[1] == "all":
+        if data[2] == "all":
             continue
-        row[int(data[1])] = float(data[2]) + float(data[4])  # usr + sys values
+        row[int(data[2])] = float(data[3]) + float(data[5])  # usr + sys values
+        #row[int(data[2])] = float(data[7]) + float(data[8])  # irq + soft
+        #row[int(data[2])] = float(data[6])  # iowait
 
     draw_report(map_values, time_axis, input_file, image_file, numa_cpus)
 
