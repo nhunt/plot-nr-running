@@ -34,10 +34,9 @@ from matplotlib.colors import ListedColormap, BoundaryNorm
 from matplotlib import collections as mc
 from matplotlib.ticker import MultipleLocator
 
-def draw_report(title, time_axis, map_values, differences, imbalances, sums, image_file=None, numa_cpus={}, figsize=None):
+def draw_report(title, time_axis, map_values, differences, imbalances, sums, image_file=None, numa_cpus={}, figsize=(20, 10)):
     # Transpose heat map data to right axes
     map_values = np.array(map_values)[:-1, :].transpose()
-
 
     # Group CPU lines by NUMA nodes
     if numa_cpus:
@@ -53,7 +52,6 @@ def draw_report(title, time_axis, map_values, differences, imbalances, sums, ima
     boundaries = [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5]
     norm = BoundaryNorm(boundaries, cmap.N, clip=True)
 
-    figsize = (20, 10) if figsize == None else figsize
     fig, axs = plt.subplots(nrows=3, ncols=1, gridspec_kw=dict(height_ratios=[4, 1, 2]),
                             sharex=True, figsize=figsize)  # , constrained_layout=True)
     fig.subplots_adjust(hspace=0.05)
@@ -142,7 +140,7 @@ def file_len(fname):
             pass
     return i + 1
 
-def process_report(title, input_file, sampling, threshold, duration, ebpf_file=False, image_file=None, numa_cpus={}):
+def process_report(title, input_file, sampling, threshold, duration, ebpf_file=False, image_file=None, numa_cpus={}, figsize=(20, 10)):
     cpus_count = 0
     time_axis = []
     map_values = []
@@ -150,6 +148,8 @@ def process_report(title, input_file, sampling, threshold, duration, ebpf_file=F
     imbalances = []
     sums = []
     counter = 0
+
+    garbage = input_file.readline() # Skip the version line
 
     if ebpf_file:
         if numa_cpus:
@@ -241,7 +241,7 @@ def process_report(title, input_file, sampling, threshold, duration, ebpf_file=F
     if not imbalances:
         print("No imbalance found")
 
-    draw_report(title, time_axis, map_values, differences, imbalances, sums, image_file, numa_cpus)
+    draw_report(title, time_axis, map_values, differences, imbalances, sums, image_file, numa_cpus, figsize=figsize)
     return time_axis, map_values, differences, imbalances
 
 
@@ -264,6 +264,10 @@ if __name__ == '__main__':
                         help="File with output of lscpu from observed machine")
     parser.add_argument("--name", type=str, default=None,
                         help="Filename to be displayed in graph. Usefull when reading input from stdin.")
+    parser.add_argument("--height", "-H", type=int, default=10,
+                        help="Height of output image file.")
+    parser.add_argument("--width", "-W", type=int, default=20,
+                        help="Width of output image file.")
 
     try:
         args = parser.parse_args()
@@ -289,4 +293,4 @@ if __name__ == '__main__':
                            args.duration, args.ebpf, args.image_file, numa_cpus)
     else:
         process_report(title, args.input_file, args.sampling, args.threshold,
-                       args.duration, args.ebpf, args.image_file, numa_cpus)
+                       args.duration, args.ebpf, args.image_file, numa_cpus, figsize=(args.width, args.height))
